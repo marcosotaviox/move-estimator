@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routers import catalog
+from app.routers import analysis, catalog
+
+logging.basicConfig(level=logging.INFO)
 
 settings = get_settings()
 
@@ -17,6 +21,7 @@ app.add_middleware(
 )
 
 app.include_router(catalog.router)
+app.include_router(analysis.router)
 
 
 @app.get("/health")
