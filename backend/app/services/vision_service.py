@@ -38,7 +38,8 @@ Fields:
 - shape:
   - "solid": box-like, nothing fits around or inside it (fridge, wardrobe, washing machine, chest of drawers, ensemble base, mattress).
   - "irregular": legs, gaps or odd shapes where small items can fill the space (exercise bike, tables, armchairs, BBQ, office chair).
-  - "stackable": stacks or nests with identical items (dining chairs, stools, plastic outdoor chairs).
+  - "stackable": small items that either stack with identical items, or get wrapped and used to fill gaps between larger items
+    (dining chairs including upholstered ones, stools, kids chairs, small side tables, plastic outdoor chairs).
 - dismantlable: true if this item comes apart for moving (bed frames, bunk beds, most wardrobes, large dining tables, desks, bookcases, cots).
   False for ensemble bases, mattresses and one-piece items that clearly do not come apart.
 - heavy: true if it needs two or more people or special care because of weight (fridges, washing machines, pianos, safes, treadmills,

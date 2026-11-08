@@ -5,7 +5,7 @@
 SHAPE_FACTORS: dict[str, float] = {
     "solid": 1.0,      # fridges, wardrobes, boxes: nothing fits around them
     "irregular": 0.7,  # bikes, tables, armchairs: gaps get filled with small items
-    "stackable": 0.5,  # dining chairs, stools: stack or nest
+    "stackable": 0.5,  # dining chairs (incl. upholstered), stools: stack or get wrapped to fill gaps
 }
 
 # Used when an item dismantles but the catalog has no dismantled volume
