@@ -1,24 +1,16 @@
-import logging
 from uuid import UUID
 
-import anthropic
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from app.core.config import get_settings
-from app.schemas.quotes import PhotoUploadResult, QuoteCreate, QuoteOut, QuoteUpdate
-from app.services.image_service import InvalidImageError
-from app.services.quote_service import (
-    CompanyNotFoundError,
-    InvalidQuoteError,
-    QuoteNotFoundError,
-    add_photo,
-    create_quote,
-    get_quote,
-    update_quote,
+from app.schemas.quotes import (
+    PhotoUploadResult,
+    QuoteCreate,
+    QuoteItemCreate,
+    QuoteItemUpdate,
+    QuoteOut,
+    QuoteUpdate,
 )
-from app.services.vision_service import VisionError
-
-logger = logging.getLogger(__name__)
+from app.services import quote_service
 
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 MB
 
@@ -26,49 +18,45 @@ router = APIRouter(tags=["quotes"])
 
 
 @router.post("/companies/{slug}/quotes", response_model=QuoteOut, status_code=201)
-def create(slug: str, data: QuoteCreate):
-    try:
-        return create_quote(slug, data)
-    except CompanyNotFoundError:
-        raise HTTPException(status_code=404, detail="Company not found")
+def create_quote(slug: str, data: QuoteCreate):
+    return quote_service.create_quote(slug, data)
 
 
 @router.get("/quotes/{quote_id}", response_model=QuoteOut)
-def read(quote_id: UUID):
-    try:
-        return get_quote(quote_id)
-    except QuoteNotFoundError:
-        raise HTTPException(status_code=404, detail="Quote not found")
+def read_quote(quote_id: UUID):
+    return quote_service.get_quote(quote_id)
 
 
 @router.patch("/quotes/{quote_id}", response_model=QuoteOut)
-def update(quote_id: UUID, data: QuoteUpdate):
-    try:
-        return update_quote(quote_id, data)
-    except QuoteNotFoundError:
-        raise HTTPException(status_code=404, detail="Quote not found")
-    except InvalidQuoteError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+def update_quote(quote_id: UUID, data: QuoteUpdate):
+    return quote_service.update_quote(quote_id, data)
 
 
 @router.post("/quotes/{quote_id}/photos", response_model=PhotoUploadResult)
 def upload_photo(quote_id: UUID, file: UploadFile = File(...), room: str = Form(...)):
     data = file.file.read()
-
     if not data:
         raise HTTPException(status_code=400, detail="Empty file")
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Image too large (max 15 MB)")
+    return quote_service.add_photo(quote_id, data, room)
 
-    try:
-        return add_photo(quote_id, data, room)
-    except QuoteNotFoundError:
-        raise HTTPException(status_code=404, detail="Quote not found")
-    except InvalidImageError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except (anthropic.APIError, VisionError) as exc:
-        logger.exception("AI analysis failed")
-        detail = "AI analysis failed, please try again"
-        if get_settings().environment == "development":
-            detail = f"{detail} | {type(exc).__name__}: {exc}"
-        raise HTTPException(status_code=502, detail=detail)
+
+@router.post("/quotes/{quote_id}/items", response_model=QuoteOut, status_code=201)
+def add_item(quote_id: UUID, data: QuoteItemCreate):
+    return quote_service.add_item(quote_id, data)
+
+
+@router.patch("/quotes/{quote_id}/items/{item_id}", response_model=QuoteOut)
+def update_item(quote_id: UUID, item_id: UUID, data: QuoteItemUpdate):
+    return quote_service.update_item(quote_id, item_id, data)
+
+
+@router.delete("/quotes/{quote_id}/items/{item_id}", response_model=QuoteOut)
+def delete_item(quote_id: UUID, item_id: UUID):
+    return quote_service.delete_item(quote_id, item_id)
+
+
+@router.post("/quotes/{quote_id}/submit", response_model=QuoteOut)
+def submit_quote(quote_id: UUID):
+    return quote_service.submit_quote(quote_id)

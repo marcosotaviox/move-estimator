@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.schemas.analysis import PhotoAnalysis
+from app.schemas.analysis import Dimensions, PhotoAnalysis, Shape
 
 BoxesMode = Literal["guide", "customer", "none"]
 
@@ -17,6 +17,8 @@ class AccessDetails(BaseModel):
     parking_distance_m: int | None = Field(default=None, ge=0, le=500)
     notes: str | None = None
 
+
+# --- Quote input ---
 
 class QuoteBase(BaseModel):
     customer_name: str | None = None
@@ -45,6 +47,45 @@ class QuoteUpdate(QuoteBase):
     boxes_mode: BoxesMode | None = None
 
 
+# --- Item input ---
+
+class QuoteItemUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    room: str | None = Field(default=None, min_length=1)
+    quantity: int | None = Field(default=None, ge=1, le=100)
+    shape: Shape | None = None
+    will_dismantle: bool | None = None
+    catalog_item_id: UUID | None = None   # swap to another catalog item, e.g. queen -> king
+    dimensions: Dimensions | None = None  # customer measured it
+    confirmed: bool | None = None
+
+    @model_validator(mode="after")
+    def one_size_source(self):
+        if self.catalog_item_id and self.dimensions:
+            raise ValueError("Send either catalog_item_id or dimensions, not both")
+        return self
+
+
+class QuoteItemCreate(BaseModel):
+    room: str = Field(min_length=1)
+    quantity: int = Field(default=1, ge=1, le=100)
+    catalog_item_id: UUID | None = None
+    name: str | None = Field(default=None, min_length=1)
+    dimensions: Dimensions | None = None
+    shape: Shape = "solid"
+    will_dismantle: bool | None = None
+
+    @model_validator(mode="after")
+    def check_source(self):
+        if not self.catalog_item_id and not self.name:
+            raise ValueError("Send a catalog_item_id or a name")
+        if self.catalog_item_id and self.dimensions:
+            raise ValueError("Send either catalog_item_id or dimensions, not both")
+        return self
+
+
+# --- Output ---
+
 class QuoteSummary(BaseModel):
     furniture_volume_m3: float
     boxes_mode: BoxesMode
@@ -58,6 +99,7 @@ class QuoteSummary(BaseModel):
     estimated_volume_m3: float
     suggested_truck: str
     items_needing_customer_input: int
+    items_needing_confirmation: int
     is_complete: bool
 
 
@@ -77,6 +119,8 @@ class QuoteItemOut(BaseModel):
     measure_source: str | None = None
     source_url: str | None = None
     confidence: float | None = None
+    confirmed: bool = False
+    needs_confirmation: bool = False
     needs_customer_input: bool = False
     notes: str | None = None
 
@@ -98,6 +142,7 @@ class QuoteOut(BaseModel):
     pickup_access: dict = {}
     dropoff_access: dict = {}
     created_at: datetime
+    submitted_at: datetime | None = None
     items: list[QuoteItemOut]
     summary: QuoteSummary
 

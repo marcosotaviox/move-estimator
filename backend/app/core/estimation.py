@@ -1,4 +1,4 @@
-"""Calibration constants for volume estimates. Tune these with real job data."""
+"""Calibration constants and volume rules. Tune these with real job data."""
 
 # --- Item volumes ---
 
@@ -10,6 +10,9 @@ SHAPE_FACTORS: dict[str, float] = {
 
 # Used when an item dismantles but the catalog has no dismantled volume
 DISMANTLED_FALLBACK_FACTOR = 0.3
+
+# Items below this AI confidence must be confirmed by the customer
+CONFIRMATION_THRESHOLD = 0.6
 
 # --- Boxes ---
 
@@ -42,6 +45,29 @@ TRUCKS: list[tuple[str, float]] = [
     ("10t", 48),
     ("12t", 55),
 ]
+
+
+def item_volumes(
+    unit_volume: float | None,
+    dismantled_unit_volume: float | None,
+    shape: str,
+    will_dismantle: bool,
+    quantity: int,
+) -> tuple[float | None, float | None]:
+    """Return (raw volume, effective volume) for an item line.
+
+    Raw = assembled size. Effective = real truck space after dismantling or filling gaps.
+    """
+    if unit_volume is None:
+        return None, None
+
+    unit = float(unit_volume)
+    if will_dismantle:
+        effective_unit = float(dismantled_unit_volume) if dismantled_unit_volume else unit * DISMANTLED_FALLBACK_FACTOR
+    else:
+        effective_unit = unit * SHAPE_FACTORS.get(shape, 1.0)
+
+    return round(unit * quantity, 3), round(effective_unit * quantity, 3)
 
 
 def box_guide(bedrooms: int) -> tuple[int, int]:

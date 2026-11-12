@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 
-from app.core.estimation import DISMANTLED_FALLBACK_FACTOR, SHAPE_FACTORS
+from app.core import estimation as est
 from app.schemas.analysis import AnalysedItem, Dimensions, PhotoAnalysis, VisionItem
 from app.schemas.catalog import CatalogItem
 from app.services.catalog_service import add_web_item, list_items
@@ -84,21 +84,16 @@ def _apply_lookup(item: AnalysedItem) -> AnalysedItem:
 
 
 def _with_volumes(item: AnalysedItem) -> AnalysedItem:
-    """Raw volume = assembled size. Effective volume = real truck space after dismantling or filling gaps."""
-    if item.unit_volume_m3 is None:
-        return item
-
-    if item.will_dismantle:
-        effective_unit = item.dismantled_unit_volume_m3 or item.unit_volume_m3 * DISMANTLED_FALLBACK_FACTOR
-    else:
-        effective_unit = item.unit_volume_m3 * SHAPE_FACTORS[item.shape]
-
-    return item.model_copy(
-        update={
-            "raw_volume_m3": round(item.unit_volume_m3 * item.quantity, 3),
-            "effective_volume_m3": round(effective_unit * item.quantity, 3),
-        }
+    raw, effective = est.item_volumes(
+        item.unit_volume_m3,
+        item.dismantled_unit_volume_m3,
+        item.shape,
+        item.will_dismantle,
+        item.quantity,
     )
+    if raw is None:
+        return item
+    return item.model_copy(update={"raw_volume_m3": raw, "effective_volume_m3": effective})
 
 
 def analyse_photo(data: bytes, room: str) -> PhotoAnalysis:

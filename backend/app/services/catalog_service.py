@@ -1,5 +1,6 @@
 import logging
 from difflib import SequenceMatcher
+from uuid import UUID
 
 from app.core.supabase import get_supabase
 from app.schemas.analysis import Dimensions
@@ -22,6 +23,11 @@ def list_items(category: str | None = None) -> list[CatalogItem]:
         query = query.eq("category", category)
     response = query.order("category").order("name").execute()
     return [CatalogItem(**row) for row in response.data]
+
+
+def get_item(item_id: UUID | str) -> CatalogItem | None:
+    response = get_supabase().table("item_catalog").select("*").eq("id", str(item_id)).limit(1).execute()
+    return CatalogItem(**response.data[0]) if response.data else None
 
 
 def match_item(name: str) -> CatalogMatch | None:
